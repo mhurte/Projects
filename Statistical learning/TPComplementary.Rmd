@@ -1,0 +1,1743 @@
+---
+editor_options: 
+  markdown: 
+    wrap: sentence
+---
+#Final Exam, Statistical Analysis And Document Mining, Complementary Course
+
+#Author : Maelig Hurte, M1AM
+
+
+
+
+####Part 1 : Multiple linear regression for prostate cancer
+
+###Question 1 : Preliminary analysis of the data
+
+$\bullet$ First of all, we just load data and have a first look of it to get an idea on the correlation between the prostate cancer represented by the tumor volume (lcavol) with other parameters. In order to get a overview of the problem, we drew a scatter plot with the following code.
+
+```{r}
+#We set a random seed for reproducibility of all results
+set.seed(2523)
+prostateCancer <- read.table("./prostate.data", header=T)
+attach(prostateCancer)
+prostateCancer <- prostateCancer[, -10]
+pairs(prostateCancer)
+```
+
+
+- Reading the graphs, we cannot conclude, yet we can be confident that capsular penetration (lcp) and prostate specific antigen (lpsa) are related to tumor volume. This relation seems to be linear between their logarithms. Some other variables can seem related but it is harder to conclude and less obvious at first glance.
+
+$\bullet$ Back to our goal, we would like to have a linear model so we want to analyse if datas are linearly related with each other, an indicator of that is the correlation. So to have a better idea of which variable are linearly dependent we analyse the correlation between these with the following code.
+
+```{r}
+cor(prostateCancer)
+```
+
+- So we can notice that the most correlated variables to lpsa are lcavol, svi and lcp as the scatter plot has shown. Conversely, age and lbph has a very small correlation with lpsa,  and we can anticipate that this factor in linear regression will be near 0.  
+
+- In conclusion, this first paragraph gave us a quick overview of the linear dependencies, and as of now, it seems lcavol and lcp are the most relevant. Next, we are going to fit a linear regression.
+
+
+
+###Question 2 : Linear Regression
+
+$\square$ In this exercise we will compute the linear regression to obtain a first predictor and analyse the results.
+
+## Linear predictive model for lcavol
+
+- Compute a linear regression is to find $Y = \epsilon + \beta_0+\beta_1.lweight+\beta_2.age+...+\beta_10.lcp$
+
+- Before computing the linear regression we have to remember that gleason and svi are qualitative variable. We have to consider that because it is a general variable used in medicine to have a quick qualification of the general condition of the patient. After that we can compute the multilinear regression. We do that with the following code :
+
+```{r}
+prostateCancer$gleason<-factor(prostateCancer$gleason)
+prostateCancer$svi<-factor(prostateCancer$svi)
+model <- lm(lpsa ~ ., data = prostateCancer)
+summary(model)
+```
+We should point out that our factor Gleason has become Gleason 7, Gleason 8, and Gleason 9. This is because we have declared it as a qualitative variable. We have three variables named GleasonX that take a value of 1 if the Gleason score is X, and 0 if it is not. The same applies for SVI.
+
+The linear regression is good. The p-value is small ($10^{-16}$), and the residual standard error is correct.
+
+## Confidence interval
+
+$\square$ We obtained an estimation of the coefficients and now we will compute their $95%$ confidence intervals to have an idea on the accuracy. 
+```{r}
+confint(model, level = 0.95)
+```
+
+-> lcavol has a confidence interval that is clearly positive and far from zero, which confirms its correlation with lpsa. Same thing for svi1 and lweight.
+
+-> lcp and gleason7 have interesting values but their proximity to zero makes it difficult to confirm a strong relation with lpsa yet.
+
+-> age had the smallest correlation with lpsa so it is unsurprisingly close to 0.
+
+
+## lpsa variable
+
+- We said that lpsa is most correlated to lcavol so we can assume that it is the most relevant in our linear regression.
+
+-> To sum up the information, it is the most correlated variable to lcavol, we have a p-values between 0 and 0.001 (given in the summary of linear regression before), a largely positive confidence interval of length 0,4. It is therefore an important variable in our linear regression, and it is coherent because we want linear dependency and it is the most correlated variable to lcavol.
+
+
+
+## Predicted values
+
+$\square$ We have made some comments on the coefficients for our linear regression, but we have not yet assessed the quality of our model. To do so, we will first plot the predicted values against the actual values.
+
+```{r, echo=FALSE}
+plot(predict(model), prostateCancer$lpsa,
+     xlab = "Predicted Values",
+     ylab = "Observed Values",
+     main='Predicted vs. Actual Values')
+
+#add diagonal line for estimated regression line
+abline(a=0, b=1, col="green")
+```
+
+$\bullet$ Now we want to validate the normality assumption of the residuals :
+
+```{r}
+library(ggplot2)
+ggplot(data = prostateCancer, aes(x = model$residuals)) +
+    geom_histogram(bins=25,fill = 'steelblue', color = 'black') +
+    labs(title = 'Histogram of Residuals', x = 'Residuals', y = 'Frequency')
+```
+
+-> According to this histogram, the residuals have a normal allure around the value 0, therefore, we can admit the supposition that the residuals follow a normal distribution.
+
+To convince ourselves, we can validate using the Shapiro-Will test with the "shapiro.test()" command.
+
+
+```{r}
+shapiro.test(x = model$residuals)
+```
+
+- In this test the null hypothesis is that the population is normally distributed.  
+
+Hence, with a a large p-values such as $0.2939$, we can "absolutely" not refute the normality of the residuals. 
+
+## Optimality of the model
+
+We can hardly believe in the optimality of this model as long as we included irrelevant features, we should improve our model with a features selection process.
+
+
+
+## lcp and lpsa off ?
+
+We run again the model after removing the features lpsa and lcp :
+
+```{r}
+prostateCancer$gleason<-factor(prostateCancer$gleason)
+prostateCancer$svi<-factor(prostateCancer$svi)
+model <- lm(lpsa ~ lweight + age + lbph + svi + svi + gleason, data = prostateCancer)
+summary(model)
+```
+
+
+We can notice that the p-value goes up from $10^{-16}$ to $10^{-12}$ and the residual standard error goes from $0.6$ to $0.8$. Therefore, it seems that lcp and lcavol were fundamental for obtaining a good model.
+
+###Question 3 : Best subset selection
+
+1- The first line of code fits a simple linear regression model with a single predictor variable, which is a constant term (1), to predict the log of a prostate specific antigen(lpsa). This model can be represented as :
+
+$$lpsa = b0 + e$$
+2- The second line of code fits a multiple linear regression model to predict the log cancer volume based on the predictor variables in columns 1 (lcavol), 4 (lbph), and the gleason score of the prostateCancer dataset. This model can be represented as:
+
+$$lcavol = b0 + b1*lcavol + b2*lbph + b3*gleason + e$$
+
+3- The third line of code fits another multiple linear regression model to predict the log cancer volume based on a subset of the predictor variables, including lcavol, the patient's age, and the Gleason score of the tumor. This model can be represented as:
+
+$$lcavol = b0 + b1*lcavol + b2*age + b3*gleason + e$$
+
+## Best model of size 2
+
+$\bullet$ Using the command comb($n$, $k$), This dataframe summarizes the different RSS (Residuals squares sum) for every possible combination of two predictors :
+
+```{r, echo=FALSE}
+
+# Create all combinations of 2 predictors
+library(combinat)
+
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 2))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  RSS[i] <- sum(lm_model$residuals^2)/97
+}
+
+# Display the RSS for each model and identify the best choice of 2 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "RSS")
+results_df
+cat("Best choice of 2 predictors among 8: lcavol - lweight\n")
+cat("The corresponding RSS is : 0.5334\n")
+```
+
+
+$\bullet$ A relevant remark would be that lcavol was expectable as it was highly correlated and lcp does not seem like the second best choice even though it was more correlated than lweight. But lweight was still highly correlated so this is not absurd as lweight was also more convincing in terms of confidence intervals.
+
+
+## Best model of size k 
+
+$\square$ We are now going to do the same as previously for $k \in \{1, 3, 4, 5, 6, 7, 8\}$ :
+
+$\bullet$ For $k=1$
+
+```{r, echo=FALSE}
+# Create all combinations of 1 predictors
+library(combinat)
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 1))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  RSS[i] <- sum(lm_model$residuals^2)/97
+}
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "RSS")
+
+ligne = which.min(RSS)
+cat("Best choice of 1 predictors among 8: ", results[ligne, 1])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+```
+
+
+$\square$ For simplicity, only the results for each value of $k$ will be given :
+
+
+
+$\bullet$ For $k=3$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 3 predictors
+library(combinat)
+
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 3))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  RSS[i] <- sum(lm_model$residuals^2)/97
+}
+
+# Display the RSS for each model and identify the best choice of 2 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+ligne = which.min(RSS)
+cat("Best choice of 3 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+```
+
+
+
+$\bullet$ For $k=4$
+
+```{r, echo=FALSE}
+# Create all combinations of 4 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 4))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  RSS[i] <- sum(lm_model$residuals^2)/97
+}
+
+# Display the RSS for each model and identify the best choice of 2 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+
+ligne = which.min(RSS)
+cat("Best choice of 4 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+```
+
+
+$\bullet$ For $k=5$
+
+```{r, echo=FALSE}
+# Create all combinations of 5 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 5))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4], "+", predictor_combinations[i, 5])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  RSS[i] <- sum(lm_model$residuals^2)/97
+}
+
+# Display the RSS for each model and identify the best choice of 2 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+
+ligne = which.min(RSS)
+cat("Best choice of 5 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4], " - ", results[ligne, 5])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+#results_df
+```
+
+
+
+
+
+$\bullet$ For $k=6$
+
+```{r, echo=FALSE}
+# Create all combinations of 6 predictors
+
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 6))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4], "+", predictor_combinations[i, 5], "+", predictor_combinations[i, 6])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  RSS[i] <- sum(lm_model$residuals^2)/97
+}
+
+# Display the RSS for each model and identify the best choice of 2 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+ligne = which.min(RSS)
+cat("Best choice of 6 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4], " - ", results[ligne, 5], " - ", results[ligne, 6])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+```
+
+
+$\bullet$ For $k=7$
+
+```{r, echo=FALSE}
+# Create all combinations of 7 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 7))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4], "+", predictor_combinations[i, 5], "+", predictor_combinations[i, 6], "+", predictor_combinations[i, 7])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  RSS[i] <- sum(lm_model$residuals^2)/97
+}
+
+# Display the RSS for each model and identify the best choice of 2 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+ligne = which.min(RSS)
+cat("Best choice of 7 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4], " - ", results[ligne, 5], " - ", results[ligne, 6], " - ", results[ligne, 7])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+```
+
+
+
+$\bullet$ For $k=8$
+
+```{r, echo=FALSE}
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 8))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- NA
+lm_model <- lm(lpsa ~., data = prostateCancer)
+RSS <- sum(lm_model$residuals^2)/97
+
+
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+ligne = which.min(RSS)
+cat("The corresponding RSS is : ", RSS)
+```
+
+
+## Minimize the sum of squared errors
+
+$\bullet$ This protocol of model selection is absolutely not well suited for the selection of the model size, and one way to be sure of this is to notice that the sum of squared errors tends to decrease as the size gets larger even if the added predictors are not relevant. 
+
+
+$\square$ We can conclude that using the minimum of RSS as the criterion of model selection can lead to over-fitting, and that we would choose a model that describes the data well but generalizes bad to new data .. To fix this, we can apply regularization methods, split validation or cross validation.
+
+####Part 3.2 regsubsets() function from leaps library
+
+```{r, echo=FALSE}
+
+library(leaps)
+#We apply the regsubsets on our model
+regsubsets = regsubsets(lpsa~., data = prostateCancer)
+summary(regsubsets)
+
+
+
+```
+
+Here we get an overview of which predictors are the best when we want to choose a certain number of them.
+As an example, lcavol would be the best one predictor model
+Lcavol and lweight would be the best two predictors models.
+
+```{r, echo=FALSE}
+
+
+#We simply apply the method adding the parameter "forward" in the function to apply regsubsets forward stepwise
+regsubsets2 = regsubsets(lpsa~., data = prostateCancer,method="forward")
+summary(regsubsets2)
+
+
+```
+
+
+
+```{r, echo=FALSE}
+
+#Same as previously but with backward stepwise
+regsubsets3 = regsubsets(lpsa~., data = prostateCancer,method="backward")
+summary(regsubsets3)
+```
+
+###Question 4 : Split-validation
+
+
+$\square$ The split-validation consists into dividing our dataset into two parts : a training set and a validation set.
+In this approach, we will use the training set to have estimators of the regression coefficients and we will thus estimate the prediction error on the validation set.
+In our previous approach, we noted that overfitting could lead to our model not being really suited for other datasets.
+The split-validation method is not subject to the same issue as the errors are calculated on a different set that the one used for the predictions hence making the model more reliable if used on others datasets.
+
+# (b/c)
+
+
+```{r, echo = FALSE}
+valid=(1:nrow(prostateCancer)) %% 3 == 0
+
+
+lm_model <- lm(lpsa ~.,data=prostateCancer[!valid, c(1, 2, 9)])
+summary(lm_model)
+
+```
+
+$\bullet$ Here we can't give an interpretation to the intercept coefficient as it does not seem to make much sense to have 0 as values to lweight and lcavol and a positive value for lpsa.
+The results show the relative slopes, an increase of 1 on lpsa will increase lcavol by 0.704 and lweight by 0.652 regarding the data of the training set.
+
+We can notice that the residual standard error on this model is almost the same than in our first model. So we can speculate that the other predictors are expendable.
+
+
+# (d)
+
+```{r, echo = FALSE}
+
+toto <-predict.lm(lm_model, prostateCancer[valid, c(1, 2, 9)])
+RSS <- sum((toto - prostateCancer[valid, 9])^2/32)
+print(RSS)
+```
+$\bullet$We can point out that the residual error for the validation set is bigger that the residual error for the training set.
+This is not surprising as we usually have such an increase in the residuals when switching to a set that has never been seen by the model.
+
+### (e)
+
+$\square$ In the previous exercise, we explored the minimum squared error method, which we deemed was not optimal. Now, we will explore the split validation method with the same manner.
+
+
+
+$\bullet$ For $k=1$
+
+```{r, echo=FALSE}
+# Create all combinations of 1 predictors
+library(combinat)
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 1))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, 8)
+for(i in 2:9){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid, c(i-1, 9)])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid, c(i-1, 9)]))
+  RSS[i-1] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 1 predictors among 8: ", results[ligne, 1])
+cat("\nThe corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+e1 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+$\bullet$ For $k=2$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 2 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 2))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  toto <- predict.lm(lm_model, prostateCancer[valid, c("lcavol", predictor_combinations[i, 1], predictor_combinations[i, 2])])
+  RSS[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+
+# Display the RSS for each model and identify the best choice of 2 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 2 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2])
+cat("\nThe corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+e2 <- as.numeric(results[ligne, "RSS"])
+```
+
+$\bullet$ For $k=3$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 3 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 3))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  toto <- predict.lm(lm_model, prostateCancer[valid, c("lcavol", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3])])
+  RSS[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+
+# Display the RSS for each model and identify the best choice of 3 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "RSS")
+
+ligne = which.min(RSS)
+cat("Best choice of 3 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2],  " - ", results[ligne, 3])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+e3 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+
+
+
+
+$\bullet$ For $k=4$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 4 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 4))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  toto <- predict.lm(lm_model, prostateCancer[valid, c("lcavol", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4])])
+  RSS[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+
+# Display the RSS for each model and identify the best choice of 4 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 4 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2],  " - ", results[ligne, 3],  " - ", results[ligne, 4])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+e4 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+
+$\bullet$ For $k=5$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 5 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 5))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4], "+", predictor_combinations[i, 5])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  toto <- predict.lm(lm_model, prostateCancer[valid, c("lcavol", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5])])
+  RSS[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+# Display the RSS for each model and identify the best choice of 5 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "RSS")
+
+
+ligne = which.min(RSS)
+cat("Best choice of 5 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2],  " - ", results[ligne, 3],  " - ", results[ligne, 4],  " - ", results[ligne, 5])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+e5 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+$\bullet$ For $k=6$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 6 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 6))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4], "+", predictor_combinations[i, 5], "+", predictor_combinations[i, 6])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  toto <- predict.lm(lm_model, prostateCancer[valid, c("lcavol", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6])])
+  RSS[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+
+# Display the RSS for each model and identify the best choice of 6 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+results_df
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "Predictor 6", "RSS")
+ligne <- which.min(RSS)
+cat("Best choice of 6 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2],  " - ", results[ligne, 3],  " - ", results[ligne, 4],  " - ", results[ligne, 5],  " - ", results[ligne, 6])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+e6 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+$\bullet$ For $k=7$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 7 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 7))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  model_formula <- paste0("lpsa ~ ", predictor_combinations[i, 1], "+", predictor_combinations[i, 2], "+", predictor_combinations[i, 3], "+", predictor_combinations[i, 4], "+", predictor_combinations[i, 5], "+", predictor_combinations[i, 6], "+", predictor_combinations[i, 7])
+  lm_model <- lm(as.formula(model_formula), data = prostateCancer)
+  toto <- predict.lm(lm_model, prostateCancer[valid, c("lcavol", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7])])
+  RSS[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+
+# Display the RSS for each model and identify the best choice of 7 predictors
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "Predictor 6", "Predictor 7", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 7 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2],  " - ", results[ligne, 3],  " - ", results[ligne, 4],  " - ", results[ligne, 5], results[ligne, 6],  " - ", results[ligne, 7])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+e7 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+$\bullet$ For $k=8$ :
+
+```{r, echo=FALSE}
+# Create all combinations of 8 predictors
+
+
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 8))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS <- rep(NA, nrow(predictor_combinations))
+for (i in 1:nrow(predictor_combinations)) {
+  lm_model <- lm(lpsa ~., data = prostateCancer[!valid, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7], predictor_combinations[i, 8])])
+  toto <- predict.lm(lm_model, prostateCancer[valid, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7], predictor_combinations[i, 8])])
+  RSS[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+
+# Check the average of residuals 
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "Predictor 6", "Predictor 7", "Predictor 8", "RSS")
+ligne = which.min(RSS)
+cat("The RSS using all available predictors is : ", as.numeric(results[ligne, "RSS"]))
+e8 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+$\square$ The graph below sums up the results :
+
+
+```{r, echo=FALSE}
+plot(x = (1:8), y = c(e1, e2, e3, e4, e5, e6, e7, e8),
+     main = "Residuals function of k",
+     xlab = "number of predictors k", ylab = "Average of residuals",
+     pch = 20, col = "blue")
+```
+
+
+
+
+$\square$ We conclude that a model with $k=7$ predictors is optimal according to the split validation selection process. This method provides a different result than the minimum squared error in the previous exercise, all for the best, the model with $7$ predictors generalizes the best.
+
+
+
+### (f)
+
+
+
+
+$\square$ The main limitation of split-validation is that it can lead to overfitting if the data is not representative of the overall population.  
+
+
+$\bullet$ For example, In the cancer dataset, when we split the data into a training and validation set, there is a possibility that the training set may not contain enough representative samples of a particular class of cancer patients, resulting in poor performance on the validation set. A concrete example might be the fact that the predictor gleason contains only 1 example with level 8, which means the category "gleason = 8" is not well represented in our dataset.  
+
+
+$\bullet$ To address this problem, a common technique is to use cross-validation instead of split-validation. In k-fold cross-validation, the data is divided into k subsets, and the model is trained and tested k times, with each subset serving as the validation set once. This technique provides a more robust estimate of the model's performance, as it uses all of the data for training and testing, and averages the results over k iterations.
+
+
+$\square$ We will be implementing 3-fold cross-validation.
+
+
+$\bullet$ For $k=1$
+
+```{r, echo=FALSE}
+# Define 3 complementary folds
+valid_1 <- (1:nrow(prostateCancer)) %% 3 == 0
+valid_2 <- (1:nrow(prostateCancer) + 1) %% 3 == 0
+valid_3 <- (1:nrow(prostateCancer) + 2) %% 3 == 0
+valid_3[37] <- FALSE
+# Create all combinations of 1 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 1))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- rep(NA, 8)
+for(i in 2:9){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1, c(i-1, 9)])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_1, c(i-1, 9)]))
+  RSS1[i-1] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS2 <- rep(NA, 8)
+for(i in 2:9){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2, c(i-1, 9)])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_2, c(i-1, 9)]))
+  RSS2[i-1] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS3 <- rep(NA, 8)
+for(i in 2:9){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3, c(i-1, 9)])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_3, c(i-1, 9)]))
+  RSS3[i-1] <- sum((toto - prostateCancer[valid, 9])^2)/33
+}
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "RSS")
+results_df
+ligne = which.min(RSS)
+cat("Best choice of 1 predictors among 8: ", results[ligne, 1])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+v1 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+
+$\bullet$ For $k=2$
+
+```{r, echo=FALSE}
+
+# Create all combinations of 2 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 2))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2])]))
+  RSS1[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS2 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2])]))
+  RSS2[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS3 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2])]))
+  RSS3[i] <- sum((toto - prostateCancer[valid, 9])^2)/33
+}
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 2 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+v2 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+
+$\bullet$ For $k=3$
+
+```{r, echo=FALSE}
+
+# Create all combinations of 3 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 3))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3])]))
+  RSS1[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS2 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3])]))
+  RSS2[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS3 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3])]))
+  RSS3[i] <- sum((toto - prostateCancer[valid, 9])^2)/33
+}
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 3 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+v3 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+
+
+$\bullet$ For $k=4$
+
+```{r, echo=FALSE}
+
+# Create all combinations of 4 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 4))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4])]))
+  RSS1[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS2 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4])]))
+  RSS2[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS3 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4])]))
+  RSS3[i] <- sum((toto - prostateCancer[valid, 9])^2)/33
+}
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 4 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+v4 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+
+$\bullet$ For $k=5$
+
+```{r, echo=FALSE}
+
+# Create all combinations of 5 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 5))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5])]))
+  RSS1[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS2 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5])]))
+  RSS2[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS3 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5])]))
+  RSS3[i] <- sum((toto - prostateCancer[valid, 9])^2)/33
+}
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 5 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4], " - ", results[ligne, 5])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+v5 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+
+
+$\bullet$ For $k=6$
+
+```{r, echo=FALSE}
+
+# Create all combinations of 6 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 6))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6])]))
+  RSS1[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS2 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6])]))
+  RSS2[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS3 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6])]))
+  RSS3[i] <- sum((toto - prostateCancer[valid, 9])^2)/33
+}
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "Predictor 6", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 6 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4], " - ", results[ligne, 5], " - ", results[ligne, 6])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+v6 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+$\bullet$ For $k=7$
+
+```{r, echo=FALSE}
+
+# Create all combinations of 7 predictors
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 7))
+
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_1, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7])]))
+  RSS1[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS2 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_2, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7])]))
+  RSS2[i] <- sum((toto - prostateCancer[valid, 9])^2)/32
+}
+RSS3 <- rep(NA, 8)
+for(i in 1:nrow(predictor_combinations)){
+  lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7])])
+  toto <-predict.lm(lm_model, subset(prostateCancer[valid_3, c("lpsa", predictor_combinations[i, 1], predictor_combinations[i, 2], predictor_combinations[i, 3], predictor_combinations[i, 4], predictor_combinations[i, 5], predictor_combinations[i, 6], predictor_combinations[i, 7])]))
+  RSS3[i] <- sum((toto - prostateCancer[valid, 9])^2)/33
+}
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "Predictor 6", "Predictor 7", "RSS")
+ligne = which.min(RSS)
+cat("Best choice of 7 predictors among 8: ", results[ligne, 1],  " - ", results[ligne, 2], " - ", results[ligne, 3], " - ", results[ligne, 4], " - ", results[ligne, 5], " - ", results[ligne, 6], " - ", results[ligne, 7])
+cat("The corresponding RSS is : ", as.numeric(results[ligne, "RSS"]))
+v7 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+
+$\bullet$ For $k=8$
+
+```{r, echo=FALSE}
+predictor_combinations <- t(combn(colnames(prostateCancer)[-9], 8))
+# Fit a linear regression model for each predictor combination and calculate the RSS
+RSS1 <- NA
+lm_model <- lm(lpsa ~., data=prostateCancer[!valid_1,])
+toto <-predict.lm(lm_model, prostateCancer[valid_1,])
+RSS1 <- sum((toto - prostateCancer[valid, 9])^2)/32
+
+RSS2 <- NA
+lm_model <- lm(lpsa ~., data=prostateCancer[!valid_2,])
+toto <-predict.lm(lm_model, prostateCancer[valid_2,])
+RSS2 <- sum((toto - prostateCancer[valid, 9])^2)/32
+
+RSS3 <- NA
+lm_model <- lm(lpsa ~., data=prostateCancer[!valid_3,])
+toto <-predict.lm(lm_model, subset(prostateCancer[valid_3,]))
+RSS3 <- sum((toto - prostateCancer[valid, 9])^2)/33
+
+RSS <- (RSS1 + RSS2 + RSS3)/3
+results <- cbind(predictor_combinations, RSS)
+results_df <- as.data.frame(results)
+
+colnames(results_df) <- c("Predictor 1", "Predictor 2", "Predictor 3", "Predictor 4", "Predictor 5", "Predictor 6", "Predictor 7", "Predictor 8", "RSS")
+ligne = which.min(RSS)
+cat("The RSS using all available predictors is : ", as.numeric(results[ligne, "RSS"]))
+v8 <- as.numeric(results[ligne, "RSS"])
+```
+
+
+$\square$ Again, The graph below sums up the results for the 3-fold cross-validation :
+
+
+```{r, echo=FALSE}
+plot(x = (1:8), y = c(v1, v2, v3, v4, v5, v6, v7, v8),
+     main = "3-fold Cross-Validation",
+     xlab = "number of predictors k", ylab = "Average of residuals",
+     pch = 20, col = "blue")
+```
+
+
+$\square$ From a model with 1 predictor to a model of two is a huge upgrade, going up to 5 improves our model again. Conversely, adding up more predictors further than five is a bad idea. The best model we can use is a model of size 5.
+
+-> With split validation, we concluded that the best model was of size 7, Which again discredits the split-validation method. Indeed, by splitting our data, we created a boundary effect that introduced a bias in the results.
+
+
+$\square$ We found that a model of size 5 is optimal. It corresponds to a model with the following 3 predictors : lcavol  -  lweight  -  age  -  lbph  -  svi
+
+
+```{r, echo=FALSE}
+model <- lm(lpsa ~., data = prostateCancer[, c("lcavol","lweight", "age", "lbph", "svi","lpsa")])
+summary(model)
+```
+
+
+-> Thanks to cross-validation, we can conclude on the optimal model. It is a model of size 5 involving the 3 most correlated variables, lcalvol, lweight and svi, and quite surprisingly, age and lbph which seemed to have no influence on the result at first glance regarding their correlation factor.
+
+$\bullet$ One point that was not considered in this study is the trade-off between computation time and the model size. In fact, it doesn't matter in this case because with 10 variables at most, the computation time would be small anyway.  
+
+
+
+###Question 5 : Ridge Regression
+
+```{r}
+library(glmnet)
+set.seed(2523)
+test=(1:nrow(prostateCancer)) %% 4 == 0
+
+#define response variable
+y <- prostateCancer$lpsa
+
+#define matrix of predictor variables
+x <- data.matrix(prostateCancer[, c('lcavol', 'lweight', 'age', 'lbph','svi','lcp','gleason','pgg45')])
+
+
+#fit ridge regression model
+model <- glmnet(x, y, alpha = 0)
+
+#view summary of model
+model
+summary(model)
+```
+
+
+
+Ridge regression without specific parameters is performed over 100 different values of lambda that are distributed between 0.11 and 1150.
+
+```{r}
+
+
+
+
+#we perform 10-fold cross-validation to find optimal lambda value
+#find optimal lambda value that minimizes ranging from 10^{-2} to 10^{10} test MSE
+
+
+lambdas <- 10^seq(-2,10,by =1)
+cv_ridge_reg = cv.glmnet(x,y, alpha = 0,lambda = lambdas,nfolds = 10)
+best_lambda <- cv_ridge_reg$lambda.min
+best_lambda
+
+
+
+```
+
+The best value for lambda is 0.1 .
+We used cv.glmnet in order to choose lambda by cross validation in our grid of values.
+Now that we have found that 0.1 is the best lambda, we can build the model accordingly.
+
+Let us predict values with the best model now and compute the MSE :
+
+```{r}
+
+cv_model <- glmnet(x, y, alpha = 0, lambda = 0.1)
+y_predicted <- predict(cv_model, s = 0.1, newx = x)
+mse <- sqrt(mean((y_predicted - y)^2))
+mse
+```
+
+
+
+Using the ridge regression model with lambda found by cross-validation, we obtain an MSE of 0.67
+We can note that this is not a great improvement compairing with linear models with cross-validation to select the predictors, we had some MSE around 0.48.
+
+###Question 6 : Lasso
+
+We will now try to implement lasso regression.
+Firstly we use cross-validation to find the best value of lambda.
+The code will be very similar to the previous one, we just need to adjust a couple details in the cv.glmnet function.
+
+
+```{r}
+lasso_reg_lambda <- cv.glmnet(data.matrix(prostateCancer),prostateCancer$lpsa, alpha = 1,lambda = lambdas,standardize = TRUE,nfolds = 10)
+lasso_reg_lambda
+
+set.seed(2523)
+test=(1:nrow(prostateCancer)) %% 4 == 0
+
+#define response variable
+y <- prostateCancer$lpsa
+
+#define matrix of predictor variables
+x <- data.matrix(prostateCancer[, c('lcavol', 'lweight', 'age', 'lbph','svi','lcp','gleason','pgg45')])
+
+
+#fit ridge regression model
+model <- glmnet(x, y, alpha = 1,standardize=TRUE)
+
+#view summary of model
+summary(model)
+
+
+
+#we perform 10-fold cross-validation to find optimal lambda value
+#find optimal lambda value that minimizes ranging from 10^{-2} to 10^{10} test MSE
+
+
+lambdas <- 10^seq(-2,10,by =1)
+cv_ridge_reg = cv.glmnet(x,y, alpha = 1,lambda = lambdas,standardize = TRUE, nfolds = 10)
+best_lambda <- cv_ridge_reg$lambda.min
+best_lambda
+
+
+
+```
+
+For the Lasso regression with cross-validation, we find that the best value for lambda is 0.01.
+
+Let us build the according model : 
+
+
+```{r}
+
+cv_model <- glmnet(x, y, alpha = 1,standardize = TRUE, lambda = 0.01)
+y_predicted <- predict(cv_model, s = 0.01, newx = x)
+mse <- sqrt(mean((y_predicted - y)^2))
+mse
+
+```
+
+
+We have found an MSE of 0.668, which is slightly better than with the Ridge Regression model.
+
+###Question 7 : Principal component regression
+ 
+For this question and for the sake of simplicity, I will use the package pls to perform the PCR as it does the cross validation on its own.
+
+```{r}
+library(pls)
+
+pcr_model <- pcr(lpsa~., data = prostateCancer, ncomp = 9, validation = "CV")
+summary(pcr_model)
+validationplot(pcr_model)
+
+```
+
+We obtain a minimal MSE for 8 components (0.745)
+
+###Question 8 : Partial least squares
+
+$\bullet$Partial least squares method is another dimension reduction regression method, as PCR. 
+The main difference between the two is that PCR is an unsupervised method, meaning the dimension reduction process use no information about the nature of the data. The difference with PLS is that the dimension reduction will be supervised and it will be much better than the PCR in the datasets where the target is correlated with directions with low variance.
+Note that the cross validation is also automatically performed within the function.
+
+```{r}
+pls_model <- plsr(lpsa~., data = prostateCancer, scale = FALSE, validation = "CV")
+summary(pls_model)
+validationplot(pls_model)
+
+
+```
+
+
+We obtain a minimal MSE for 7 components (0.737).
+The minimal MSE is inferior to that of the PCR model, which confirms that PLS can be an improvement of the PCR model.
+ 
+###Question 9 : Cross-validation
+
+
+
+
+
+
+###Question 10 : Conclusion
+
+As a conclusion, we can conclude that the best models were obtained through the initial component selection via cross-validation in the question 4. Although, some of the methods used later were quite promising and much easier to ease with very acceptable MSE as we could have with the Lasso regression for example.
+
+
+####Part 2 : Classification methods for the Weekly data set
+
+
+In this exercise, we will be working over the Weekly dataset which consists of percentage returns for the S&P 500 stock index over 1089 weeks from the beginning of 1990 to the end of 2010. For each weeks, we have recorded the percentage returns for each of the five previous trading weeks, Lag1 through Lag5. We have also recorded Volume (the number of shares traded on the previous week, in billions), Today (the percentage return on the date in question) and Direction (whether the market was Up or Down on this date). Our goal is to predict Direction (a qualitative response) using the other features.
+
+```{r}
+library(ISLR2)
+data(Weekly)
+str("Weekly")
+attach(Weekly)
+
+```
+
+###Question 1 Numerical and graphical summaries
+
+Firstly we try to get some global informations about our dataset to get an idea of its confguration and of the global interactions bbetween the different columns.
+```{r}
+summary(Weekly)
+pairs(Weekly)
+#As the values of the Direction column will be either "up" or "down", we remove the column to calculate the correlation
+cor(Weekly[,-9])
+```
+
+
+It it rather hard to see something interesting with the "pairs" function, although there seem to be a logarithmic relation between the Year and Volume variable.
+This is confirmed by the correlation computation which actually returns a very high correlation between those two variables (+0,84).
+Most of the other correlations are rather low and there is nothing more interesting at first glance.
+
+###Question 2 : Logistic regression
+
+
+```{r}
+Weekly_log<-glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=Weekly,family=binomial)
+summary(Weekly_log)
+```
+
+Only one parameter seems to be significant at the level of significance alpha =0.05  : Lag2.
+The other variables fail the test.
+
+
+###Question 3 : Confusion matrix
+
+
+```{r}
+#We predict our values
+Weekly_log_pred = predict(Weekly_log, type='response')
+#If the predicted value is <0.5, the prediction is "Down", else, the prediction is "Up" so we make a vector accordingly
+Weekly_log_pred2 =rep("Down", length(Weekly_log_pred))
+Weekly_log_pred2[Weekly_log_pred > 0.5] = "Up"
+#We can now compute the confusion matrix
+table(Weekly_log_pred2, Direction)
+```
+
+
+The confusion matrix gives us information about the percentage of right and wrong prediction.
+Basically, We got right 54 "Down" Prediction but predicted "Down" 48 times when it was actually "Up"
+We predicted "Up" 557 times right but 430 times, we predicted "Up" when it was actually down.
+
+Hence, we have $(54+557)/(54+48+430+557)*100 = 56.1\%$ of global prediction accuracy
+It is interesting to notice that when we need to predict "Down", we have $54/484 *100 = 11.16\%$ of success so our method is very poor in that regard.
+But when we want to predict "Up", we have $557/605 * 100 = 92.1\%$ of accuracy which is contrastly really high.
+
+###Question 4 : Logistic regression and confusion matrix
+
+Now, we will split the data set into a training and validation set.
+We will use the data from 1990 to 2008 as our training set and the rest as our validation set.
+We will compute the confusion matrix with that values doing the predictions on the validation set data.
+```{r}
+#Computing the model based on the training dataset
+train = (Year<2009)
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Weekly_model_log<-glm(Direction~Lag2, data=Weekly_train,family=binomial)
+
+#Predicting for the validation set
+Weekly_log_pred = predict(Weekly_model_log, Weekly_test, type = "response")
+
+#Confusion Matrix
+Weekly_log_pred2 = rep("Down", length(Weekly_log_pred))
+Weekly_log_pred2[Weekly_log_pred > 0.5] = "Up"
+Direction_test = Direction[!train]
+
+table(Weekly_log_pred2, Direction_test)
+```
+
+
+Now we got a significant improvement using this method. Our global accuracy has now risen to 62.5% (It was previously 56.1%).
+Our accuracy when predicting "Up" has very slightly disminished with 91.8% of accuracy (Previously 92.1%).
+Our accuracy when predicting "Down" has significantly increased (while still remaining rather low) with 20.9% of accuracy (Previously 11.2%).
+
+###Question 5 : Linear Discriminant Analysis
+
+
+We will now do the same as question 4 but using LDA.
+
+```{r}
+library(MASS)
+#Computing the model based on the training dataset
+
+train = (Year<2009)
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Weekly_model_lda<-lda(Direction~Lag2, data=Weekly_train,family=binomial)
+
+#Predicting for the validation set
+Weekly_lda_pred = predict(Weekly_model_lda, Weekly_test)
+
+#One can note that in this case, we directly predicted "Up" or "Down", not a value between 0 and 1
+#Confusion Matrix
+table(Weekly_lda_pred$class, Direction_test)
+
+```
+
+
+This method didn't give us any new insights as the results are exactly the same as those we had in Question 4.
+
+###Question 6 : Quadratic discriminant analysis
+
+We will now try to use QDA, with practically the same code as Question 5.
+
+```{r}
+
+library(MASS)
+#Computing the model based on the training dataset
+
+train = (Year<2009)
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Weekly_model_qda<-qda(Direction~Lag2, data=Weekly_train,family=binomial)
+
+#Predicting for the validation set
+Weekly_qda_pred = predict(Weekly_model_qda, Weekly_test)
+
+#One can note that in this case, we directly predicted "Up" or "Down", not a value between 0 and 1
+#Confusion Matrix
+table(Weekly_qda_pred$class, Direction_test)
+
+```
+
+
+The accuracy is of 58.65% but this model has basically given "Up" all the time and this percentage is most likely due to the distribution of our validation set and nothing else. It doesn't seem to be granting us any information or improvement.
+
+###Question 7 : K_Nearest Neighbors
+
+We will now try to use the KNN method with K = 1 to see if it grants us any interesting results.
+
+```{r}
+
+library(class)
+
+train = (Year<2009)
+
+#We have to turn our objects into vectors or data frames to use the function
+Weekly_train = as.matrix(Lag2[train])
+Weekly_test = as.matrix(Lag2[!train])
+Direction_train = Direction[train]
+Direction_test = Direction[!train]
+
+Weekly_1nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=1)
+table(Weekly_1nn_pred, Direction_test)
+
+
+
+```
+
+
+This method gives approximately 51% of success globally and for each variable. We do not get any improvement from it and the distribution of the values is rather uninteresting.
+
+###Question 8 : Naive Bayes
+
+We will now try to use the Naive Bayes method.
+
+
+```{r}
+
+library(e1071)
+
+train = (Year<2009)
+
+#We have to turn our objects into vectors or data frames to use the function
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Direction_train = Direction[train]
+Direction_test = Direction[!train]
+
+Weekly_model_bayes = naiveBayes(Direction~.,data = Weekly_train)
+
+Weekly_bayes_pred = predict(Weekly_model_bayes, Weekly_test)
+
+table(Weekly_bayes_pred, Direction_test)
+
+```
+
+We obtain a very impressive improvement using this method, the "Up" prediction has 100% of success, the "Down" prediction has about 74% of success. We have a global success rate of 85.6% which is far superior to every method that we have previously tried.
+
+
+###Question 9 : Comparison
+
+On this data, the Naive Bayes gave us by far the most promising results with about 85% of accuracy, it is followed by LDA and Logistic regression with 62.5%, QDA with 59% but given the nature of the results I think it is not relevant and this high percentage is purely random. Then we finally have 1NN which gave us about 50% which makes it uninteresting.
+The great success of NaiveBayes could indicate that the predictors were independent which would put us in the best conditions for the optimality of this method. 
+
+###Question 10 : Experiment with different combinations of predictors
+
+We will now try to use different combinations of predictors for the different methods and try to see if we find better methods
+For a simplicity matter, I will try out a couple of different combinations but I will not do all of them.
+
+```{r}
+
+#Logistic Regression with the predictors Lag3 and Lag5
+
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Direction_train = Direction[train]
+Direction_test = Direction[!train]
+
+
+Weekly_model<-glm(Direction~Lag3 +Lag5, data=Weekly_train, family=binomial)
+Weekly_log_pred = predict(Weekly_model, Weekly_test, type = "response")
+Weekly_log_pred2 = rep("Down", length(Weekly_log_pred))
+Weekly_log_pred2[Weekly_log_pred > 0.5] = "Up"
+
+table(Weekly_log_pred2, Direction_test)
+```
+
+With predictors 3 and 5 and logistic regression we get a very poor model as the prediction is almost always "Up", it seems rather irrelevant.
+
+
+```{r}
+
+#Logistic Regression with the predictors Lag2, Lag3 and Lag5
+
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Direction_train = Direction[train]
+Direction_test = Direction[!train]
+
+
+Weekly_model<-glm(Direction~Lag2+Lag3 +Lag5, data=Weekly_train, family=binomial)
+Weekly_log_pred = predict(Weekly_model, Weekly_test, type = "response")
+Weekly_log_pred2 = rep("Down", length(Weekly_log_pred))
+Weekly_log_pred2[Weekly_log_pred > 0.5] = "Up"
+
+table(Weekly_log_pred2, Direction_test)
+```
+
+
+This is a bit better than before but still gives "Up" way too much.
+
+
+```{r}
+
+#QDA with the predictors Lag2 and Volume
+
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Direction_train = Direction[train]
+Direction_test = Direction[!train]
+
+
+Weekly_model<-qda(Direction~Lag2+Volume, data=Weekly_train,family=binomial)
+Weekly_log_pred = predict(Weekly_model, Weekly_test, type = "response")
+
+
+table(Weekly_qda_pred$class, Direction_test)
+```
+
+
+As before, the QDA really is of no interest also with those predictors.
+
+Let us try to use KNN with various values of k.
+```{r}
+
+library(class)
+set.seed(2523)
+train = (Year<2009)
+
+#We will try to use KNN with various values of k
+
+Weekly_train = as.matrix(Lag2[train])
+Weekly_test = as.matrix(Lag2[!train])
+Direction_train = Direction[train]
+Direction_test = Direction[!train]
+
+
+Weekly_1nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=1)
+table(Weekly_1nn_pred, Direction_test)
+Weekly_2nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=2)
+table(Weekly_2nn_pred, Direction_test)
+Weekly_3nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=3)
+table(Weekly_3nn_pred, Direction_test)
+Weekly_5nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=5)
+table(Weekly_5nn_pred, Direction_test)
+Weekly_7nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=7)
+table(Weekly_7nn_pred, Direction_test)
+Weekly_10nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=10)
+table(Weekly_10nn_pred, Direction_test)
+Weekly_11nn_pred = knn(Weekly_train,Weekly_test, Direction_train ,k=11)
+table(Weekly_11nn_pred, Direction_test)
+```
+
+One interesting thing now is that the KNN method gets better for some values of k and it is not as random as it seemed to be with k = to 1.
+For the values that we tried, we get the best results for K=10 with 58.7 success rate, 50% chance when guessing "Down" and 63% when guessing "Up" which is quite fine comparing with 1NN.
+
+
+
+
+```{r}
+
+library(e1071)
+
+train = (Year<2009)
+#train = (Year<2007)
+
+#We have to turn our objects into vectors or data frames to use the function
+Weekly_test <-Weekly[!train,]
+Weekly_train <-Weekly[train,]
+Direction_train = Direction[train]
+Direction_test = Direction[!train]
+
+Weekly_model_bayes = naiveBayes(Direction~Lag2+ Lag5 +Lag4+ Today ,data = Weekly_train)
+Weekly_bayes_pred = predict(Weekly_model_bayes, Weekly_test)
+table(Weekly_bayes_pred, Direction_test)
+
+
+Weekly_model_bayes = naiveBayes(Direction~Lag2+ Volume+ Lag5 +Lag4+ Today ,data = Weekly_train)
+Weekly_bayes_pred = predict(Weekly_model_bayes, Weekly_test)
+table(Weekly_bayes_pred, Direction_test)
+
+Weekly_model_bayes = naiveBayes(Direction~ Lag4+ Today  +Lag1 ,data = Weekly_train)
+Weekly_bayes_pred = predict(Weekly_model_bayes, Weekly_test)
+table(Weekly_bayes_pred, Direction_test)
+```
+
+I have now tried to use the naive Bayes method with various predictors and the results are really interesting this time.
+
+
+Two of the models I tried have really impressive success rates : 
+- With predictors Lag2, Lag4, Lag5 and Today, we reach 100% success rate on Down and nearly 98% on "Up" for a global success rate reaching 99%.
+-With predictors Lag2, Lag4, Lag5, Volume and Today, we reached 100% of success rate for guessing "up", about 80% for guessing "Down" and about 90% of global success rate.
+
+One remark here is that Volume seem to affect the efficiency of the model really much, maybe it does not satisfy the assumptions of naive Bayes really well ?
+
+-With predictors Lag1, Lag4 and Today, we have the most success rate with only one "Down" guessed wrongly for more than 99% success rate.
+
+
+
+Note : for the sake of curiosity i have tried another testing set to make sure that the results would remain very high, it can be found in the comments of the code and also gives results close to 99% of success for the best models.
+
+
+
+Eventually, trying out some methods did lead to very interesting results and we still have naiveBayes as the most efficient method this time with nearly 100%, reaching a peak efficiency with predictors Lag1, Lag4 and Today.
+We can remark that we got some success using KNN with $K=10$ with about 58% of success even though it is not a very great model still.
+The others attempts on QDA and Logistic regression were rather disappointing and lead to nothing interesting.
+
+As a conclusion, we can say that naiveBayes with the right choice of predictors was, by far, the best model that we have found.
+
+####Part3 : Decision Trees for the Carseats data set
+
+```{r}
+library(ISLR2)
+data(Carseats)
+str("Carseats")
+attach(Carseats)
+Carseats$Name<-NULL
+```
+
+Remark : In the following questions, I happened to encounter an issue regarding a random factor in the results, in fact, when using the tree library function, the results can slightly vary on my side if I rerun the program and setting the seed again (which I thought was initially the issue) didn't quite seem to do the trick, it sometimes change and it sometimes does not, so if some results is slightly different in my explanations and a plot this might be the reason.
+
+
+###Question 1 : Split the data 
+
+```{r}
+library(tree)
+summary(Carseats)
+
+#This will define the test sample, we will use a quarter of the values
+test=(1:nrow(Carseats)) %% 4 == 0
+
+```
+
+
+###Question 2 : Fit a regression tree to the training set
+
+
+In this part, I will build a regression tree over my dataset and try to predict the value of Sales according to the other parameters.
+```{r, fig.width=9, fig.height=9}
+library(tree)
+summary(Carseats)
+set.seed(2523)
+
+
+
+tree_carseats = tree(Sales~.,data = Carseats[!test,])
+
+
+
+plot(tree_carseats)
+text(tree_carseats, pretty = 0, xpd = TRUE)
+title("Regression tree")
+tree_pred=predict(tree_carseats, Carseats[test,])
+
+sqrt(mean((tree_pred - Carseats$Sales)^2))
+```
+
+So we get the following tree and we computed that the MSE was of 3.78. We will try in the next question to prune the tree and see if we can get any improvement on that.
+
+
+###Question 3 : Optimal level of tree complexity
+
+We will try to perform cross-validation using cv.tree function to see if we can prune the tree into an actually better model.
+
+```{r, fig.width=5, fig.height=4}
+
+set.seed(2523)
+cv_carseats =cv.tree(tree_carseats )
+names(cv_carseats )
+cv_carseats
+
+
+plot(cv_carseats$size ,cv_carseats$dev ,xlab = "Size of the tree", ylab ="Cross-validation error",type="b")
+
+
+prune_carseats =prune.tree(tree_carseats ,best =7)
+plot(prune_carseats )
+text(prune_carseats ,pretty =0)
+title("Pruned regression tree for k = 7")
+tree_pred=predict(prune_carseats, Carseats[test,])
+
+sqrt(mean((tree_pred - Carseats$Sales)^2))
+```
+The cv.tree function seems to offer a reduced error for $k=7$ so we prune it accordingly. This pruning led us to a slight reduction of the MSE which is now of 3.71 (previously 3.78) so we did get a better result in the end and an easier model.
+
+
+
+###Question 4 : Classification trees on the training data
+
+We have tried to predict our results using regression tree, we will now proceed to try and predict our results using a classification tree. Note that in order to do so, we need to turn the "Sales" column into a binary value, so basically, we will call "high" a sales value above 8 and "not high" otherwise (characterized by 0 and 1)
+
+
+
+We now replaced the Sales values by a binary value (basically higher or lower) and we computed the tree accordingly.
+
+We recall that for a classification tree, the deviance (as reported in the summary function) for a given statistical model m, with $n_{ij}$ the value of a node and $\hat{n}_{ij}$ the expected value of a node.
+$$D(m) = 2\sum_{i=1}^r\sum_{j=1}^cn_{ij}ln(\frac{n_{ij}}{\hat{n}_{ij}})$$
+
+```{r, fig.width=10, fig.height=8}
+Carseats$High=ifelse(Sales <=8,0,1)
+Carseats$High<-factor(Carseats$High)
+test=(1:nrow(Carseats)) %% 4 == 0
+
+#As usual, we build the tree using the training set
+tree_carseats_high = tree(High~.-Sales, data = Carseats[!test,])
+
+#Plot 
+plot(tree_carseats_high )
+text(tree_carseats_high ,pretty =0)
+title("Classification tree")
+
+summary(tree_carseats_high)
+#We make the predictions using the testing set
+tree_pred=predict(tree_carseats_high ,Carseats[test,] ,type ="class")
+
+t.table<-table(tree_pred ,Carseats[test,]$High)
+t.table
+
+```
+
+The training error rate given by the function summary() is 0.1167 
+
+As we now work on classification trees, the MSE does not seem like the right way to compare our results (our values are either zero or one). Hence, in order to make a comparison later, I computed the confusion matrix and I will simply compare the success rates.
+
+So for this non-pruned tree, we obtain 81.7% of right guess for the "Lower" (ie. 0) prediction.
+We have 65% of success for the "Higher" prediction and a global 75% of success which is already quite satisfying.
+
+
+###Question 5 : Classification trees on the testing data
+
+This step has already been done previously and there is no need to change the arrangement of the training and testing sets so I will use the same ones thereafter.
+
+
+###Question 6 : Optimal level of tree complexity
+
+In order to improve our previous model even more, we would like to see if pruning can give us a better solution so we will reuse the cv.tree function in that regard.
+
+```{r}
+#We reuse the previous code to see if we can upgrade the tree by performing cross validation
+set.seed(2523)
+cv_carseats_high =cv.tree(tree_carseats_high ,FUN=prune.misclass )
+names(cv_carseats_high )
+cv_carseats_high
+
+
+plot(cv_carseats_high$size ,cv_carseats_high$dev ,xlab = "Size of the tree", ylab ="Cross-validation error",type="b")
+
+
+```
+Running this function and plotting the error against the size of the tree, we notice that there is in fact a pruned version of the tree that gives a much smaller cross-validation error with $k=9$ so we prune the tree accordingly.
+
+```{r}
+#There is in fact a better pruning option in this case for k = 9, we will use this tree to compute the prediction
+prune_carseats_high =prune.misclass(tree_carseats_high ,best =9)
+
+plot(prune_carseats_high )
+text(prune_carseats_high ,pretty =0)
+title("Classification tree pruned for k = 9")
+summary(prune_carseats_high)
+
+tree_pred_pruned=predict(tree_carseats_high ,Carseats[test,] ,type ="class")
+
+
+t.table<-table(tree_pred_pruned ,Carseats[test,]$High)
+t.table
+
+
+
+```
+So as a first note, we notice that the residual mean deviance and misclassification error rate both increased for the pruned tree, so we don't expect to get anything a great improvement.
+We have in fact 80.5% of success in the guessing of "Lower" and 64% of success in the guessing of "Higher" for a global success rate of 74%. 
+These are almost the same results as the non pruned tree, but as this gives a much more simple tree, for a neglectable reduction in the performances, I would still consider the pruned tree as the best version of the model. Obviously it might be better in our case to use the bigger tree and make use of that slight better success rate as the computations will be fast anyway but say that we work on a much bigger model, using a pruned tree could lead to a great improvement of the performance and in this very case, for a very slight loss of efficiency.
+
