@@ -1,0 +1,83 @@
+newmtl cube_top
+  Ns 10.0000
+  Ni 1.5000
+  d 1.0000
+  Tr 0.0000
+  Tf 1.0000 1.0000 1.0000 
+  illum 2
+  Ka 0.0000 0.0000 0.0000
+  Kd 0.5880 0.5880 0.5880
+  Ks 0.0000 0.0000 0.0000
+  Ke 0.0000 0.0000 0.0000
+  map_Ka posy.jpg
+  map_Kd posy.jpg
+
+newmtl cube_bottom
+  Ns 10.0000
+  Ni 1.5000
+  d 1.0000
+  Tr 0.0000
+  Tf 1.0000 1.0000 1.0000 
+  illum 2
+  Ka 0.0000 0.0000 0.0000
+  Kd 0.5880 0.5880 0.5880
+  Ks 0.0000 0.0000 0.0000
+  Ke 0.0000 0.0000 0.0000
+  map_Ka negy.jpg
+  map_Kd negy.jpg
+
+newmtl cube_front
+  Ns 10.0000
+  Ni 1.5000
+  d 1.0000
+  Tr 0.0000
+  Tf 1.0000 1.0000 1.0000 
+  illum 2
+  Ka 0.0000 0.0000 0.0000
+  Kd 0.5880 0.5880 0.5880
+  Ks 0.0000 0.0000 0.0000
+  Ke 0.0000 0.0000 0.0000
+  map_Ka negz.jpg
+  map_Kd negz.jpg
+
+newmtl cube_back
+  Ns 10.0000
+  Ni 1.5000
+  d 1.0000
+  Tr 0.0000
+  Tf 1.0000 1.0000 1.0000 
+  illum 2
+  Ka 0.0000 0.0000 0.0000
+  Kd 0.5880 0.5880 0.5880
+  Ks 0.0000 0.0000 0.0000
+  Ke 0.0000 0.0000 0.0000
+  map_Ka posz.jpg
+  map_Kd posz.jpg
+
+newmtl cube_right
+  Ns 10.0000
+  Ni 1.5000
+  d 1.0000
+  Tr 0.0000
+  Tf 1.0000 1.0000 1.0000 
+  illum 2
+  Ka 0.0000 0.0000 0.0000
+  Kd 0.5880 0.5880 0.5880
+  Ks 0.0000 0.0000 0.0000
+  Ke 0.0000 0.0000 0.0000
+  map_Ka negx.jpg
+  map_Kd negx.jpg
+
+newmtl cube_left
+  Ns 10.0000
+  Ni 1.5000
+  d 1.0000
+  Tr 0.0000
+  Tf 1.0000 1.0000 1.0000 
+  illum 2
+  Ka 0.0000 0.0000 0.0000
+  Kd 0.5880 0.5880 0.5880
+  Ks 0.0000 0.0000 0.0000
+  Ke 0.0000 0.0000 0.0000
+  map_Ka posx.jpg
+  map_Kd posx.jpg
