@@ -1,0 +1,43 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/test.dir/src/Dictionary.cpp.o"
+  "CMakeFiles/test.dir/src/Dictionary.cpp.o.d"
+  "CMakeFiles/test.dir/src/Histogram.cpp.o"
+  "CMakeFiles/test.dir/src/Histogram.cpp.o.d"
+  "CMakeFiles/test.dir/src/Image.cpp.o"
+  "CMakeFiles/test.dir/src/Image.cpp.o.d"
+  "CMakeFiles/test.dir/src/Mask.cpp.o"
+  "CMakeFiles/test.dir/src/Mask.cpp.o.d"
+  "CMakeFiles/test.dir/src/Pixel.cpp.o"
+  "CMakeFiles/test.dir/src/Pixel.cpp.o.d"
+  "CMakeFiles/test.dir/src/PixelCoordinates.cpp.o"
+  "CMakeFiles/test.dir/src/PixelCoordinates.cpp.o.d"
+  "CMakeFiles/test.dir/src/Rotation.cpp.o"
+  "CMakeFiles/test.dir/src/Rotation.cpp.o.d"
+  "CMakeFiles/test.dir/src/Scaling.cpp.o"
+  "CMakeFiles/test.dir/src/Scaling.cpp.o.d"
+  "CMakeFiles/test.dir/src/Shear.cpp.o"
+  "CMakeFiles/test.dir/src/Shear.cpp.o.d"
+  "CMakeFiles/test.dir/src/Transformation.cpp.o"
+  "CMakeFiles/test.dir/src/Transformation.cpp.o.d"
+  "CMakeFiles/test.dir/src/Translation.cpp.o"
+  "CMakeFiles/test.dir/src/Translation.cpp.o.d"
+  "CMakeFiles/test.dir/src/general_main.cpp.o"
+  "CMakeFiles/test.dir/src/general_main.cpp.o.d"
+  "CMakeFiles/test.dir/src/inpainting.cpp.o"
+  "CMakeFiles/test.dir/src/inpainting.cpp.o.d"
+  "CMakeFiles/test.dir/src/local_warp.cpp.o"
+  "CMakeFiles/test.dir/src/local_warp.cpp.o.d"
+  "CMakeFiles/test.dir/src/main_1_simulation.cpp.o"
+  "CMakeFiles/test.dir/src/main_1_simulation.cpp.o.d"
+  "CMakeFiles/test.dir/src/transform.cpp.o"
+  "CMakeFiles/test.dir/src/transform.cpp.o.d"
+  "CMakeFiles/test.dir/src/utils.cpp.o"
+  "CMakeFiles/test.dir/src/utils.cpp.o.d"
+  "test"
+  "test.pdb"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/test.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()
